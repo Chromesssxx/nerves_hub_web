@@ -76,6 +76,17 @@ defmodule NervesHubWebCore.Certificate do
     {not_before, not_after}
   end
 
+  def fingerprint(der) when is_binary(der) do
+    :crypto.hash(:sha, der)
+    |> Base.encode16()
+  end
+
+  def fingerprint(otp_certificate) when is_tuple(otp_certificate) do
+    otp_certificate
+    |> to_der()
+    |> fingerprint()
+  end
+
   defp convert_timestamp({:utcTime, timestamp}) do
     <<year::binary-unit(8)-size(2), month::binary-unit(8)-size(2), day::binary-unit(8)-size(2),
       hour::binary-unit(8)-size(2), minute::binary-unit(8)-size(2),

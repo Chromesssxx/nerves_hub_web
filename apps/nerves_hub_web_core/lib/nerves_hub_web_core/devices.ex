@@ -216,6 +216,7 @@ defmodule NervesHubWebCore.Devices do
   def get_device_by_certificate(_), do: {:error, :not_found}
 
   def get_device_certificate_by_x509(cert) do
+    fingerprint = NervesHubWebCore.Certificate.fingerprint(cert)
     aki = NervesHubWebCore.Certificate.get_aki(cert)
     serial = NervesHubWebCore.Certificate.get_serial_number(cert)
     {not_before, not_after} = NervesHubWebCore.Certificate.get_validity(cert)
@@ -223,7 +224,10 @@ defmodule NervesHubWebCore.Devices do
     query =
       from(
         c in DeviceCertificate,
-        where:
+        where: [fingerprint: ^fingerprint],
+        # TODO: Remove lookup by other fields when DER and
+        # fingerprints have been captured
+        or_where:
           c.serial == ^serial and
             c.aki == ^aki and
             c.not_before == ^not_before and

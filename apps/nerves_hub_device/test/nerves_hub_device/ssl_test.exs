@@ -1,7 +1,7 @@
 defmodule NervesHubDevice.SSLTest do
   use NervesHubDevice.DataCase, async: true
 
-  alias NervesHubWebCore.Fixtures
+  alias NervesHubWebCore.{Certificate, Fixtures}
 
   setup do
     user = Fixtures.user_fixture()
@@ -125,7 +125,7 @@ defmodule NervesHubDevice.SSLTest do
     assert :error = NervesHubDevice.SSL.verify_device(cert2)
   end
 
-  test "updates DER field when missing", %{user: user} do
+  test "updates DER and Fingerprint fields when missing", %{user: user} do
     org = Fixtures.org_fixture(user, %{name: "verify_device"})
     product = Fixtures.product_fixture(user, org)
     org_key = Fixtures.org_key_fixture(org)
@@ -160,11 +160,17 @@ defmodule NervesHubDevice.SSLTest do
     assert is_nil(db_cert1.der)
     assert is_nil(db_cert2.der)
 
+    assert is_nil(db_cert1.fingerprint)
+    assert is_nil(db_cert2.fingerprint)
+
     assert {:ok, db_cert1} = NervesHubDevice.SSL.verify_device(cert1)
     assert {:ok, db_cert2} = NervesHubDevice.SSL.verify_device(cert2)
 
     assert db_cert1.der == X509.Certificate.to_der(cert1)
     assert db_cert2.der == X509.Certificate.to_der(cert2)
+
+    assert db_cert1.fingerprint == Certificate.fingerprint(cert1)
+    assert db_cert2.fingerprint == Certificate.fingerprint(cert2)
   end
 
   describe "expired signer certificate" do
@@ -226,7 +232,7 @@ defmodule NervesHubDevice.SSLTest do
       assert {:valid, nil} = NervesHubDevice.SSL.verify_device_certificate(cert, nil)
     end
 
-    test "update der on (n) time use certificate", %{user: user} do
+    test "update der and fingerprint on (n) time use certificate", %{user: user} do
       org = Fixtures.org_fixture(user, %{name: "verify_device"})
       product = Fixtures.product_fixture(user, org)
       org_key = Fixtures.org_key_fixture(org)
@@ -257,10 +263,14 @@ defmodule NervesHubDevice.SSLTest do
       :timer.sleep(2_000)
 
       assert is_nil(db_cert.der)
+      assert is_nil(db_cert.fingerprint)
 
       assert {:valid, nil} = NervesHubDevice.SSL.verify_device_certificate(cert, nil)
 
-      assert Fixtures.reload(db_cert).der == X509.Certificate.to_der(cert)
+      reloaded = Fixtures.reload(db_cert)
+
+      assert reloaded.der == Certificate.to_der(cert)
+      assert reloaded.fingerprint == Certificate.fingerprint(cert)
     end
   end
 end
